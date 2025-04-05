@@ -1,0 +1,384 @@
+---
+title: "ST_HW7"
+author: "Mika Ohayon  mo25575"
+date: "2025-04-02"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+[Click here for Github repo for code](https://github.com/mikaohayon/HW2)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load and Examine the Data
+
+```{r, echo=FALSE}
+library(dplyr)
+library(ggplot2)
+armfold <- read.csv("C:/Users/mikao/Downloads/Statistical thinking/armfold.csv")
+turnout <- read.csv("C:/Users/mikao/Downloads/Statistical thinking/turnout.csv")
+```
+
+### Number of Male and Female Students in the sample
+
+```{r, echo=FALSE}
+gender_counts <- armfold %>% count(Sex)
+gender_counts
+```
+
+### Sample Proportion of Males and Females Folding Left Arm on Top
+
+```{r, echo=FALSE}
+male_data <- armfold %>% filter(Sex == "Male")
+female_data <- armfold %>% filter(Sex == "Female")
+
+p_male <- mean(male_data$LonR_fold)
+p_female <- mean(female_data$LonR_fold)
+
+p_male
+p_female
+```
+
+## Observed Difference in Proportions (Male-Female)
+
+```{r, echo=FALSE}
+diff_prop <- p_male - p_female
+diff_prop
+```
+
+## 95% Confidence Interval for Difference in Proportions
+
+### Manual Calculation
+
+The standard error for the difference in proportions is given by:
+
+\[
+SE(\hat{p}_1 - \hat{p}_2) = \sqrt{\frac{\hat{p}_1 (1 - \hat{p}_1)}{n_1} + \frac{\hat{p}_2 (1 - \hat{p}_2)}{n_2}}
+\]
+
+Substituting the values from our data:
+
+\[
+SE = \sqrt{\frac{`r round(p_male * (1 - p_male) / nrow(male_data), 5)`}{`r nrow(male_data)`} + \frac{`r round(p_female * (1 - p_female) / nrow(female_data), 5)`}{`r nrow(female_data)`}}
+\]
+
+The confidence interval is calculated as:
+
+\[
+(\hat{p}_1 - \hat{p}_2) \pm z^* \times SE
+\]
+
+where \( z^* \) is the critical value from the standard normal distribution. 
+Since I wanted a 95% confidence level, I used:
+
+\[
+z^* = 1.96
+\]
+
+because the standard normal distribution includes 95% of the probability within 1.96 (or 2) standard deviations of the mean.
+
+The manual calculation for confidence intervals for difference in proportions is:
+
+```{r, echo=FALSE}
+# Standard error formula: sqrt(p1(1-p1)/n1 + p2(1-p2)/n2)
+n_male <- nrow(male_data)
+n_female <- nrow(female_data)
+
+se_diff <- sqrt((p_male * (1 - p_male) / n_male) + (p_female * (1 - p_female) / n_female))
+z_star <- 1.96  # 95% confidence level
+
+lower_bound <- diff_prop - z_star * se_diff
+upper_bound <- diff_prop + z_star * se_diff
+
+c(lower_bound, upper_bound)
+```
+
+### R Built-in Function
+
+```{r, echo=FALSE}
+prop_test <- prop.test(x = c(sum(male_data$LonR_fold), sum(female_data$LonR_fold)),
+                       n = c(n_male, n_female),
+                       correct = FALSE)
+prop_test$conf.int
+```
+
+## Interpretation
+
+If we were to repeat this experiment many times with different random samples, then we would expect that the confidence intervals calculated would contain the true difference in population proportions 95% of the time.
+
+## Explanation of Standard Error
+
+The standard error I calculated above represents variation in the sample proportions because of random sampling. The SE represents how much the observed difference in proportion fluctuates between each sample by chance.
+
+
+## Explanation of Sampling Distribution
+ The sampling distribution shows the distribution of the difference in sample proportions for many repeated samples. In this context, it is referring to the sample prop for males and females folding their left arm over their right, and the variation of that from sample to sample. The true population proportions remain fixed, and the shape of the sampling distribution approaches a normal distribution due to the Central Limit Theorem.
+
+## Justification for Normal Approximation
+
+By the Central Limit Theorem, when sample sizes are sufficiently large, n=30, the distribution of the difference in sample proportions follows a normal distribution. This is because each sample proportion is an average of trials with a result 0 or 1, which approximates normality for large samples. The difference of two approximately normal proportions remains approximately normal, therefore we can use a normal distribution to approximate confidence intervals for inference.
+
+##  "No Sex Difference" Claim
+
+If our 95% confidence interval contains zero ([-0.01, 0.30]), I would say that it is not considered statistically significant and we cannot rule out the possibility that there is no true difference. There isn't enough statistical evidence to conclude that the proportions differ. However, if the interval did include zero, it suggests a statistically significant difference in how males and females fold their arms.
+
+## Confidence Interval Variability Across Samples
+If we repeated this experiment many times with different random samples of university students, each ranom sample would output a different confidence interval because of sampling variability. However, across all samples, 95% of the intervals would contain the true population difference. However, the samples would also be different in that the width of the intervals would depend on sample size, larger samples result in smaller confidence intervals with less uncertainty than small samples.Even though individual surveys would vary, the method is still reliable for estimating the population parameter.
+
+### VOTER TURNOUT
+
+### Part A: Raw Difference in Voting Rates
+
+```{r, echo=FALSE}
+
+# Voting proportions by GOTV call status
+p_treated <- mean(turnout$voted1998[turnout$GOTV_call == 1])
+p_control <- mean(turnout$voted1998[turnout$GOTV_call == 0])
+
+# Sample sizes
+n_treated <- sum(turnout$GOTV_call == 1)
+n_control <- sum(turnout$GOTV_call == 0)
+
+# Standard errors
+se_treated <- sqrt(p_treated * (1 - p_treated) / n_treated)
+se_control <- sqrt(p_control * (1 - p_control) / n_control)
+
+# Difference in proportions and CI
+diff_unmatched <- p_treated - p_control
+se_diff <- sqrt(se_treated^2 + se_control^2)
+ci_lower <- diff_unmatched - 1.96 * se_diff
+ci_upper <- diff_unmatched + 1.96 * se_diff
+
+# Print nicely
+results_unmatched <- tibble(
+  `Proportion Voted (GOTV Call)` = p_treated,
+  `Proportion Voted (No GOTV Call)` = p_control,
+  `Difference in Proportions` = diff_unmatched,
+  `95% CI Lower Bound` = ci_lower,
+  `95% CI Upper Bound` = ci_upper
+)
+
+results_unmatched
+
+
+```
+People who received a GOTV call had a 64.8% voting rate in 1998, while those who didn’t had a 44.4% rate. This results in a raw difference of 20.4 percentage points, suggesting a strong association between receiving a call and voting.
+
+### Part B: Evidence of Confounding
+
+```{r, echo=FALSE}
+library(tidyverse)
+
+# Summary stats with shorter names
+summary_confounders <- turnout %>%
+  group_by(GOTV_call) %>%
+  summarise(
+    Voted96 = mean(voted1996),
+    Age = mean(AGE),
+    MajorParty = mean(MAJORPTY)
+  )
+
+summary_confounders
+
+# Plot 1: Voted in 1996 by GOTV Call
+ggplot(turnout, aes(x = factor(GOTV_call), y = voted1996)) +
+  stat_summary(fun = mean, geom = "bar", fill = "#4C78A8") +
+  labs(
+    title = "Voted in 1996 by GOTV Call",
+    x = "GOTV Call",
+    y = "Proportion Voted",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Plot 2: Age distribution by GOTV Call
+ggplot(turnout, aes(x = factor(GOTV_call), y = AGE)) +
+  geom_boxplot(fill = "#A1C9F4") +
+  labs(
+    title = "Age Distribution by GOTV Call",
+    x = "GOTV Call",
+    y = "Age",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Plot 3: Major Party Affiliation by GOTV Call
+ggplot(turnout, aes(x = factor(GOTV_call), y = MAJORPTY)) +
+  stat_summary(fun = mean, geom = "bar", fill = "#F58518") +
+  labs(
+    title = "Major Party Affiliation by GOTV Call",
+    x = "GOTV Call",
+    y = "Proportion in Major Party",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Confidence interval function
+conf_int <- function(x1, x0) {
+  n1 <- length(x1)
+  n0 <- length(x0)
+  m1 <- mean(x1)
+  m0 <- mean(x0)
+  se1 <- sqrt(var(x1)/n1)
+  se0 <- sqrt(var(x0)/n0)
+  diff <- m1 - m0
+  se_diff <- sqrt(se1^2 + se0^2)
+  ci <- c(diff - 1.96 * se_diff, diff + 1.96 * se_diff)
+  tibble(
+    Difference = round(diff, 4),
+    CI_Lower = round(ci[1], 4),
+    CI_Upper = round(ci[2], 4)
+  )
+}
+
+# Compute CIs
+ci_voted1996 <- conf_int(
+  turnout$voted1996[turnout$GOTV_call == 1],
+  turnout$voted1996[turnout$GOTV_call == 0]
+) %>% mutate(Variable = "Voted96")
+
+ci_age <- conf_int(
+  turnout$AGE[turnout$GOTV_call == 1],
+  turnout$AGE[turnout$GOTV_call == 0]
+) %>% mutate(Variable = "Age")
+
+ci_party <- conf_int(
+  turnout$MAJORPTY[turnout$GOTV_call == 1],
+  turnout$MAJORPTY[turnout$GOTV_call == 0]
+) %>% mutate(Variable = "MajorParty")
+
+# Combine and display
+bind_rows(ci_voted1996, ci_age, ci_party) %>%
+  select(Variable, Difference, CI_Lower, CI_Upper)
+
+```
+Those who received a government call were more likely to have voted in 1996, were older, and were more often affiliated with a major party. These statistically significant differences suggest that these variables are confounding and are likely inflating the observed raw difference in voting rates for those who received and didn't receive a call.
+
+### Part C: Matching for Causal Inference
+```{r, echo=FALSE}
+library(MatchIt)
+library(tidyverse)
+
+# Matching
+match_out <- matchit(GOTV_call ~ voted1996 + AGE + MAJORPTY,
+                     data = turnout, method = "nearest", ratio = 5)
+
+matched_data <- match.data(match_out)
+
+# Summary statistics after matching (short labels)
+matched_summary <- matched_data %>%
+  group_by(GOTV_call) %>%
+  summarise(
+    Voted96 = mean(voted1996),
+    Age = mean(AGE),
+    MajorParty = mean(MAJORPTY)
+  )
+
+print(matched_summary)
+
+# Plot 1: Voted in 1996 (matched)
+ggplot(matched_data, aes(x = factor(GOTV_call), y = voted1996)) +
+  stat_summary(fun = mean, geom = "bar", fill = "#4C78A8") +
+  labs(
+    title = "Voted in 1996 by GOTV Call (Matched)",
+    x = "GOTV Call",
+    y = "Proportion Voted",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Plot 2: Age distribution (matched)
+ggplot(matched_data, aes(x = factor(GOTV_call), y = AGE)) +
+  geom_boxplot(fill = "#A1C9F4") +
+  labs(
+    title = "Age Distribution by GOTV Call (Matched)",
+    x = "GOTV Call",
+    y = "Age",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Plot 3: Major party affiliation (matched)
+ggplot(matched_data, aes(x = factor(GOTV_call), y = MAJORPTY)) +
+  stat_summary(fun = mean, geom = "bar", fill = "#F58518") +
+  labs(
+    title = "Major Party Affiliation by GOTV Call (Matched)",
+    x = "GOTV Call",
+    y = "Proportion in Major Party",
+    caption = "0 = No Call, 1 = Received Call"
+  ) +
+  theme_minimal()
+
+# Reuse CI function from earlier
+conf_int <- function(x1, x0) {
+  n1 <- length(x1)
+  n0 <- length(x0)
+  m1 <- mean(x1)
+  m0 <- mean(x0)
+  se1 <- sqrt(var(x1)/n1)
+  se0 <- sqrt(var(x0)/n0)
+  diff <- m1 - m0
+  se_diff <- sqrt(se1^2 + se0^2)
+  ci <- c(diff - 1.96 * se_diff, diff + 1.96 * se_diff)
+  tibble(
+    Difference = round(diff, 4),
+    CI_Lower = round(ci[1], 4),
+    CI_Upper = round(ci[2], 4)
+  )
+}
+
+# Confidence intervals for matched balance
+ci_voted1996_m <- conf_int(
+  matched_data$voted1996[matched_data$GOTV_call == 1],
+  matched_data$voted1996[matched_data$GOTV_call == 0]
+) %>% mutate(Variable = "Voted96")
+
+ci_age_m <- conf_int(
+  matched_data$AGE[matched_data$GOTV_call == 1],
+  matched_data$AGE[matched_data$GOTV_call == 0]
+) %>% mutate(Variable = "Age")
+
+ci_party_m <- conf_int(
+  matched_data$MAJORPTY[matched_data$GOTV_call == 1],
+  matched_data$MAJORPTY[matched_data$GOTV_call == 0]
+) %>% mutate(Variable = "MajorParty")
+
+# Combine and display CI table
+bind_rows(ci_voted1996_m, ci_age_m, ci_party_m) %>%
+  select(Variable, Difference, CI_Lower, CI_Upper)
+```
+
+
+### Recompute Effect of Govt Call (Treatment) vs. No Call (Control) Using Matched Data
+
+```{r, echo=FALSE}
+# Compute outcome proportions post-matching
+p_treated_m <- mean(matched_data$voted1998[matched_data$GOTV_call == 1])
+p_control_m <- mean(matched_data$voted1998[matched_data$GOTV_call == 0])
+n_treated_m <- sum(matched_data$GOTV_call == 1)
+n_control_m <- sum(matched_data$GOTV_call == 0)
+
+se_treated_m <- sqrt(p_treated_m * (1 - p_treated_m) / n_treated_m)
+se_control_m <- sqrt(p_control_m * (1 - p_control_m) / n_control_m)
+
+diff_matched <- p_treated_m - p_control_m
+se_diff_m <- sqrt(se_treated_m^2 + se_control_m^2)
+ci_lower_m <- diff_matched - 1.96 * se_diff_m
+ci_upper_m <- diff_matched + 1.96 * se_diff_m
+
+# Final results in tidy format
+tibble(
+  Prop_Treated = round(p_treated_m, 3),
+  Prop_Control = round(p_control_m, 3),
+  Difference = round(diff_matched, 3),
+  CI_Lower = round(ci_lower_m, 3),
+  CI_Upper = round(ci_upper_m, 3)
+)
+
+```
+After matching on prior voting, age, and party affiliation, the groups were balanced on these variables. The adjusted difference in 1998 voting rates dropped to 7.85 percentage points, indicating a smaller but still positive estimated causal effect of the GOTV call.
+
+
+ We can conclude that the GOTV call had a positive effect on the likelihood of voting in the 1998 election. While the initial difference in turnout between those who received a call and those who didn’t was 20.4%, this difference was largely inflated by confounding factors. After matching on prior voting behavior, age, and party affiliation, the estimated causal effect of the GOTV call was reduced to 7.85 percentage points, suggesting a smaller but statistically significant increase in voter turnout due to the call.
